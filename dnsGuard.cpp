@@ -59,15 +59,14 @@ int main()
     // return 1;
     system("git clone https://github.com/AdguardTeam/AdguardFilters ./AdguardFilters --depth=1");
   }
+  else
+  {
+    // Se déplacer dans le répertoire du repository Effectuer un git pull
+    fs::current_path(repo_path);
+    system("git pull");
+    fs::current_path("../");
+  }
 
-  // Se déplacer dans le répertoire du repository
-  fs::current_path(repo_path);
-
-  // Effectuer un git pull pour mettre à jour le repository
-  system("git pull");
-
-  // Récupérer la liste des fichiers de filtre AdGuard dans le répertoire
-  fs::current_path("../");
   std::vector<std::string> filter_files;
   try
   {
@@ -85,12 +84,14 @@ int main()
     return 1;
   }
 
-  std::ofstream output_file("rules.conf", std::ios::trunc);
-
   // Parcourir chaque fichier de filtre
   for (const auto &filter_file : filter_files)
   {
-    std::cout << "Conversion des règles pour le fichier : " << filter_file << std::endl;
+    std::filesystem::path file_name(filter_file);
+    std::string rule_file_name = "./rules/" + file_name.stem().string() + ".conf";
+    std::ofstream output_file(rule_file_name, std::ios::trunc);
+
+    std::cout << rule_file_name << std::endl;
     open_adguard_rules(filter_file, output_file);
   }
 

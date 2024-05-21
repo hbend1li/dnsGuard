@@ -1,3 +1,4 @@
 AdguardFilters
 rules.conf
-barracuda
+dnsGuard
+rules/*
