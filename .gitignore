@@ -1,5 +1,7 @@
 AdguardFilters
 rules.conf
 dnsGuard
+rules
 rules/*
+testlink
 .vscode
