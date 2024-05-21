@@ -32,7 +32,7 @@ int main()
 
   const std::string repo_path = "./AdguardFilters/";
   const std::string rule_dir = "rules";
-  const std::string dnsmasq_rules = "testlink";
+  const std::string dnsmasq_rules = "/etc/dnsmasq.d/";
 
   // Vérifier si le répertoire du repository existe
   if (!fs::exists(repo_path) || !fs::is_directory(repo_path))
