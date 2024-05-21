@@ -88,7 +88,17 @@ int main()
   for (const auto &filter_file : filter_files)
   {
     std::filesystem::path file_name(filter_file);
-    std::string rule_file_name = "./rules/" + file_name.stem().string() + ".conf";
+    std::string rule_dir = "./rules/";
+
+    if (!fs::exists(rule_dir))
+    {
+      if (fs::create_directory(rule_dir))
+      {
+        std::cout << rule_dir << "Directory created successfully." << std::endl;
+      }
+    }
+
+    std::string rule_file_name = rule_dir + file_name.stem().string() + ".conf";
     std::ofstream output_file(rule_file_name, std::ios::trunc);
 
     std::cout << rule_file_name << std::endl;
