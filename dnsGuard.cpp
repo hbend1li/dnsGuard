@@ -14,53 +14,25 @@ namespace fs = std::filesystem;
 
 // Function to convert AdGuard rules to dnsmasq rules
 // Fonction pour convertir les règles AdGuard en règles dnsmasq
-void convert_to_dnsmasq_rules(const std::string &adguard_rule, std::ostream &output)
-{
-  // Check that the AdGuard rule is valid
-  // Vérifiez que la règle AdGuard est valide
-  if (adguard_rule.empty() || adguard_rule[0] == '!')
-  {
-    // Rule is empty or comment, ignore it
-    // La règle est vide ou un commentaire, ignorez-la
-    return;
-  }
+void convert_to_dnsmasq_rules(const std::string &adguard_rule, std::ostream &output);
 
-  // Check if the rule starts with '||', which means a domain to block
-  // Vérifiez si la règle commence par ||, ce qui signifie un domaine à bloquer
-  if (adguard_rule.find("||") == 0)
-  {
-    // Récupérez le domaine à bloquer en sautant les premiers caractères (||)
-    // Recover the domain to block by skiping the first characters (||)
-    std::string domain = adguard_rule.substr(2);
-
-
-    // Générez la règle dnsmasq correspondante et écrivez-la dans le flux de sortie
-    // Generate the corresponding dnsmasq rule and write it in the output stream
-    output << "address=/" << domain << "/0.0.0.0" << std::endl;
-  }
-}
 
 // Fonction pour convertir les fichiers de filtre AdGuard en règles pour nftables
-void open_adguard_rules(const std::string &filter_file, std::ostream &output)
-{
-  std::ifstream file(filter_file);
-  if (!file.is_open())
-  {
-    std::cerr << "The file cannot be opened : " << filter_file << std::endl;
-    return;
-  }
-  std::string line;
-  while (std::getline(file, line))
-  {
-    convert_to_dnsmasq_rules(line, output);
-  }
-}
+void open_adguard_rules(const std::string &filter_file, std::ostream &output);
+
+int check_requirements();
 
 int main()
 {
+
+  if (check_requirements() != 0){
+  return 1;
+  }
+
+
   const std::string repo_path = "./AdguardFilters/";
   const std::string rule_dir = "rules";
-  const std::string dnsmasq_rules = "testlink";
+  const std::string dnsmasq_rules = "/etc/dnsmasq.d/";
 
   // Vérifier si le répertoire du repository existe
   if (!fs::exists(repo_path) || !fs::is_directory(repo_path))
@@ -87,14 +59,11 @@ int main()
       
 
     }catch(const fs::filesystem_error &e){
-      std::cerr << "Error creating directory: " << e.what() << std::endl;
+      std::cerr << "Error creating directory -> " << e.what() << std::endl;
       return 1;
 
     }
-    /* if (fs::create_directory(rule_dir))
-    {
-      std::cout << rule_dir << "directory created successfully." << std::endl;
-    } */
+
   }
 
   std::vector<std::string> filter_files;
@@ -110,7 +79,7 @@ int main()
   }
   catch (const fs::filesystem_error &e)
   {
-    std::cerr << "Error reading files in directory: " << e.what() << std::endl;
+    std::cerr << "Error reading files in directory -> " << e.what() << std::endl;
     return 1;
   }
 
@@ -128,4 +97,66 @@ int main()
 
   std::cout << "conversion is complete." << std::endl;
   return 0;
+}
+
+
+int check_requirements(){
+  if(0 != system("git --version  >nul 2>&1")){
+    std::cerr << "git command not found, check if it's installed" << std::endl;
+    return -1;
+  }
+  if(0 != system("dnsmasq --version  >nul 2>&1")){
+    std::cerr << "dnsmasq command not found, check if it's installed." << std::endl;
+    return -1;
+  }
+  if(!fs::exists("/etc/dnsmasq.d/")){
+    std::cerr << "/etc/dnsmasq.d/ not found." << std::endl;
+    return -1;
+  }
+
+  return 0;
+}
+
+
+
+void convert_to_dnsmasq_rules(const std::string &adguard_rule, std::ostream &output)
+{
+  // Check that the AdGuard rule is valid
+  // Vérifiez que la règle AdGuard est valide
+  if (adguard_rule.empty() || adguard_rule[0] == '!')
+  {
+    // Rule is empty or comment, ignore it
+    // La règle est vide ou un commentaire, ignorez-la
+    return;
+  }
+
+  // Check if the rule starts with '||', which means a domain to block
+  // Vérifiez si la règle commence par ||, ce qui signifie un domaine à bloquer
+  if (adguard_rule.find("||") == 0)
+  {
+    // Récupérez le domaine à bloquer en sautant les premiers caractères (||)
+    // Recover the domain to block by skiping the first characters (||)
+    std::string domain = adguard_rule.substr(2);
+
+
+    // Générez la règle dnsmasq correspondante et écrivez-la dans le flux de sortie
+    // Generate the corresponding dnsmasq rule and write it in the output stream
+    output << "address=/" << domain << "/0.0.0.0" << std::endl;
+  }
+}
+
+
+void open_adguard_rules(const std::string &filter_file, std::ostream &output)
+{
+  std::ifstream file(filter_file);
+  if (!file.is_open())
+  {
+    std::cerr << "The file cannot be opened : " << filter_file << std::endl;
+    return;
+  }
+  std::string line;
+  while (std::getline(file, line))
+  {
+    convert_to_dnsmasq_rules(line, output);
+  }
 }
