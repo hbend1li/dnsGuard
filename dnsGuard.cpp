@@ -75,7 +75,7 @@ int main()
   {
     if (fs::create_directory(rule_dir))
     {
-      std::cout << rule_dir << "Directory created successfully." << std::endl;
+      std::cout << rule_dir << "directory created successfully." << std::endl;
     }
   }
 
