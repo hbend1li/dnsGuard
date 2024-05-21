@@ -51,6 +51,7 @@ void open_adguard_rules(const std::string &filter_file, std::ostream &output)
 int main()
 {
   const std::string repo_path = "./AdguardFilters/";
+  const std::string rule_dir = "./rules/";
 
   // Vérifier si le répertoire du repository existe
   if (!fs::exists(repo_path) || !fs::is_directory(repo_path))
@@ -65,6 +66,14 @@ int main()
     fs::current_path(repo_path);
     system("git pull");
     fs::current_path("../");
+  }
+
+  if (!fs::exists(rule_dir))
+  {
+    if (fs::create_directory(rule_dir))
+    {
+      std::cout << rule_dir << "Directory created successfully." << std::endl;
+    }
   }
 
   std::vector<std::string> filter_files;
@@ -88,15 +97,6 @@ int main()
   for (const auto &filter_file : filter_files)
   {
     std::filesystem::path file_name(filter_file);
-    std::string rule_dir = "./rules/";
-
-    if (!fs::exists(rule_dir))
-    {
-      if (fs::create_directory(rule_dir))
-      {
-        std::cout << rule_dir << "Directory created successfully." << std::endl;
-      }
-    }
 
     std::string rule_file_name = rule_dir + file_name.stem().string() + ".conf";
     std::ofstream output_file(rule_file_name, std::ios::trunc);
