@@ -2,3 +2,4 @@ AdguardFilters
 rules.conf
 dnsGuard
 rules/*
+.vscode
