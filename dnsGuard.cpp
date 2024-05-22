@@ -12,9 +12,10 @@
 
 namespace fs = std::filesystem;
 
-const std::string repo_path = "./AdguardFilters/";
+const std::string dnsguard_path = "/etc/dnsGuard/";
+const std::string dnsmasq_path = "/etc/dnsmasq.d/";
+const std::string AdguardFilters_dir = "AdguardFilters";
 const std::string rule_dir = "rules";
-const std::string dnsmasq_rules = "/etc/dnsmasq.d/";
 
 // Function to convert AdGuard rules to dnsmasq rules
 void convert_to_dnsmasq_rules(const std::string &adguard_rule, std::ostream &output);
@@ -26,40 +27,27 @@ int check_requirements(void);
 
 int main()
 {
-
   if (check_requirements() != 0){
-    return 1;
+    return -1;
   }
 
-  // Vérifier si le répertoire du repository existe
-  if (!fs::exists(repo_path) || !fs::is_directory(repo_path))
+  // git clone or git pull if exists
+  if (!fs::exists(dnsguard_path+AdguardFilters_dir) || !fs::is_directory(dnsguard_path+AdguardFilters_dir))
   {
-    system("git clone https://github.com/AdguardTeam/AdguardFilters ./AdguardFilters --depth=1");
+    std::string command = "git clone https://github.com/AdguardTeam/AdguardFilters " + dnsguard_path + AdguardFilters_dir + " --depth=1";
+    system(command.c_str());
   }
   else
   {
     // Se déplacer dans le répertoire du repository Effectuer un git pull
-    fs::current_path(repo_path);
+    fs::current_path(dnsguard_path+AdguardFilters_dir);
     system("git pull");
-    fs::current_path("../");
-  }
-
-  if (!fs::exists(rule_dir))
-  {
-    try{
-      fs::path target(dnsmasq_rules);
-      fs::path link(rule_dir);
-      fs::create_directory_symlink(target, link );
-    }catch(const fs::filesystem_error &e){
-      std::cerr << "Error creating directory -> " << e.what() << std::endl;
-      return 1;
-    }
   }
 
   std::vector<std::string> filter_files;
   try
   {
-    for (auto &entry : fs::recursive_directory_iterator(repo_path))
+    for (auto &entry : fs::recursive_directory_iterator(dnsguard_path+AdguardFilters_dir))
     {
       if (fs::is_regular_file(entry) && entry.path().extension() == ".txt")
       {
@@ -77,7 +65,7 @@ int main()
   for (const auto &filter_file : filter_files)
   {
     fs::path file_name(filter_file);
-    std::string rule_file_name = rule_dir + "/" + file_name.stem().string() + ".conf";
+    std::string rule_file_name = dnsguard_path + rule_dir + "/" + file_name.stem().string() + ".conf";
     std::ofstream output_file(rule_file_name, std::ios::trunc);
     std::cout << rule_file_name << std::endl;
     open_adguard_rules(filter_file, output_file);
@@ -103,16 +91,30 @@ int check_requirements(void){
     std::cerr << "dnsmasq command not found, check if it's installed." << std::endl;
     return -1;
   }
-  if(!fs::exists(dnsmasq_rules)){
-    std::cerr << dnsmasq_rules << " not found." << std::endl;
+  if(!fs::exists(dnsmasq_path)){
+    std::cerr << dnsmasq_path << " not found." << std::endl;
     return -1;
+  }
+  if(!fs::exists(dnsguard_path + rule_dir)){
+    fs::create_directories(dnsguard_path + rule_dir);
+  }
+  if (!fs::exists(dnsguard_path+rule_dir))
+  {
+    try{
+      fs::path target(dnsmasq_path);
+      fs::path link(dnsguard_path+rule_dir);
+      fs::create_directory_symlink(target, link );
+    }catch(const fs::filesystem_error &e){
+      std::cerr << "Error creating directory -> " << e.what() << std::endl;
+      return -1;
+    }
   }
 
   // Check running https server
   if(0 != is_process_running("busybox httpd -p 0.0.0.0:65321")){
     if (0 != system("busybox httpd -p 0.0.0.0:65321 -h /etc/dnsGuard/httpd")){
       std::cerr << "httpd: bind: Address already in use." << std::endl;
-      return -1;
+      //return -1;
     }
   }
   return 0;
