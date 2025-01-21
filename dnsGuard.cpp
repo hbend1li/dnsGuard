@@ -86,58 +86,63 @@ int main()
 
 int is_process_running(const char *process_name)
 {
-  char command[256];
-  snprintf(command, sizeof(command), "pgrep -f '%s' > /dev/null", process_name);
-  int result = system(command);
-  return result == 0;
+    char command[256];
+    snprintf(command, sizeof(command), "pgrep '%s' > /dev/null 2>&1", process_name);
+    return system(command) == 0;
 }
 
 int check_requirements(void)
 {
-  if (0 != system("git --version  >nul 2>&1"))
-  {
-    std::cerr << "git command not found, check if it's installed" << std::endl;
-    return -1;
-  }
-  if (0 != system("dnsmasq --version  >nul 2>&1"))
-  {
-    std::cerr << "dnsmasq command not found, check if it's installed."
-              << std::endl;
-    return -1;
-  }
-  if (!fs::exists(dnsmasq_path))
-  {
-    std::cerr << dnsmasq_path << " not found." << std::endl;
-    return -1;
-  }
-
-  if (!fs::exists(dnsguard_path + rule_dir))
-  {
-    try
+    if (0 != system("git --version > /dev/null 2>&1"))
     {
-      fs::path target(dnsmasq_path);
-      fs::path link(dnsguard_path + rule_dir);
-      fs::create_directory_symlink(target, link);
-      std::cout << "Link created!" << std::endl;
+        std::cerr << "git command not found, check if it's installed" << std::endl;
+        return -1;
     }
-    catch (const fs::filesystem_error &e)
+    if (0 != system("dnsmasq --version > /dev/null 2>&1"))
     {
-      std::cerr << "Error creating directory -> " << e.what() << std::endl;
-
-      return -1;
+        std::cerr << "dnsmasq command not found, check if it's installed." << std::endl;
+        return -1;
     }
-  }
-
-  // Check running https server
-  if (0 != is_process_running("busybox httpd -p 0.0.0.0:65321"))
-  {
-    if (0 != system("busybox httpd -p 0.0.0.0:65321 -h /etc/dnsGuard/httpd"))
+    if (!fs::exists(dnsmasq_path))
     {
-      std::cerr << "httpd: bind: Address already in use." << std::endl;
-      // return -1;
+        std::cerr << dnsmasq_path << " not found." << std::endl;
+        return -1;
     }
-  }
-  return 0;
+
+    if (!fs::exists(dnsguard_path + rule_dir))
+    {
+        try
+        {
+            fs::path target(dnsmasq_path);
+            fs::path link(dnsguard_path + rule_dir);
+            fs::create_directory_symlink(target, link);
+            std::cout << "Link created!" << std::endl;
+        }
+        catch (const fs::filesystem_error &e)
+        {
+            std::cerr << "Error creating directory -> " << e.what() << std::endl;
+
+            return -1;
+        }
+    }
+
+    if (!fs::exists(dnsguard_path)) {
+        try {
+            fs::create_directories(dnsguard_path);
+        } catch (const fs::filesystem_error &e) {
+            std::cerr << "Error creating dnsGuard directory -> " << e.what() << std::endl;
+            return -1;
+        }
+    }
+
+    if (!is_process_running("busybox httpd")) {
+        if (0 != system("mkdir -p /etc/dnsGuard/httpd && busybox httpd -p 0.0.0.0:65321 -h /etc/dnsGuard/httpd"))
+        {
+            std::cerr << "Failed to start httpd server" << std::endl;
+            return -1;
+        }
+    }
+    return 0;
 }
 
 void convert_to_dnsmasq_rules(const std::string &adguard_rule,
@@ -156,8 +161,16 @@ void convert_to_dnsmasq_rules(const std::string &adguard_rule,
     // Recover the domain to block by skiping the first characters (||)
     std::string domain = adguard_rule.substr(2);
 
-    // Generate the corresponding dnsmasq rule and write it in the output stream
-    output << "address=/" << domain << "/0.0.0.0:65321" << std::endl;
+    // Remove any trailing modifiers or comments after the domain
+    size_t pos = domain.find_first_of("^$#");
+    if (pos != std::string::npos) {
+        domain = domain.substr(0, pos);
+    }
+    
+    // Skip if domain is empty or invalid
+    if (!domain.empty() && domain.find('.') != std::string::npos) {
+        output << "address=/" << domain << "/0.0.0.0" << std::endl;
+    }
   }
 }
 
